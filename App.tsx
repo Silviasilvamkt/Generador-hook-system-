@@ -4,10 +4,6 @@ import { RAW_HOOKS } from './constants';
 import { FormData, GeneratedHook } from './types';
 import HookCard from './components/HookCard';
 
-// Initialize Gemini
-// NOTE: In a real production app, ensure API Key is handled via secure backend or env vars correctly.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const App: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     niche: '',
@@ -28,6 +24,17 @@ const App: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const getAIClient = () => {
+    // Check if the API Key was injected correctly by Vite
+    // We trim() to remove accidental whitespace from copy-pasting
+    const apiKey = process.env.API_KEY ? process.env.API_KEY.trim() : "";
+    
+    if (!apiKey || apiKey === "" || apiKey === "undefined") {
+      throw new Error("API_KEY_MISSING");
+    }
+    return new GoogleGenAI({ apiKey });
+  };
+
   const generateHooks = async (isLoadMore: boolean = false) => {
     if (!formData.niche || !formData.topic) {
       setError("Por favor completa el nicho y la idea principal.");
@@ -38,6 +45,9 @@ const App: React.FC = () => {
     setError(null);
 
     try {
+      // Initialize AI client here to catch configuration errors
+      const ai = getAIClient();
+
       // Calculate which raw templates to use
       const start = isLoadMore ? (batchIndex + 1) * BATCH_SIZE : 0;
       const end = start + BATCH_SIZE;
@@ -107,9 +117,21 @@ const App: React.FC = () => {
         setBatchIndex(0);
       }
 
-    } catch (err) {
-      console.error(err);
-      setError("Hubo un error generando los hooks. Por favor intenta de nuevo.");
+    } catch (err: any) {
+      console.error("AI Error:", err);
+      
+      let errorMessage = "Hubo un error generando los hooks. Por favor intenta de nuevo.";
+      
+      // Handle specific errors
+      if (err.message === "API_KEY_MISSING") {
+        errorMessage = "Falta la API KEY en Vercel. Ve a Settings > Environment Variables y agrega 'API_KEY'.";
+      } else if (err.toString().includes("429") || err.toString().includes("Too Many Requests")) {
+        errorMessage = "¡Mucha creatividad por hoy! Hemos alcanzado el límite gratuito momentáneo. Espera 30 segundos e intenta de nuevo.";
+      } else if (err.toString().includes("403") || err.toString().includes("API key not valid")) {
+        errorMessage = "La API Key no es válida o ha expirado. Por favor verifica en Vercel.";
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -183,8 +205,10 @@ const App: React.FC = () => {
             </div>
 
             {error && (
-              <div className="mt-4 text-brand-red font-medium text-center">
-                {error}
+              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md animate-fade-in">
+                 <p className="text-brand-red font-bold text-center text-sm md:text-base">
+                  {error}
+                </p>
               </div>
             )}
 
@@ -217,9 +241,9 @@ const App: React.FC = () => {
                <button
                 onClick={() => generateHooks(true)}
                 disabled={loading}
-                className="bg-white border-2 border-brand-black text-brand-black font-bold py-3 px-8 hover:bg-brand-black hover:text-white transition-all duration-300 uppercase text-xs tracking-widest"
+                className="bg-white border-2 border-brand-black text-brand-black font-bold py-3 px-8 hover:bg-brand-black hover:text-white transition-all duration-300 uppercase text-xs tracking-widest disabled:opacity-50"
               >
-                {loading ? 'Cargando más...' : 'Cargar siguientes 10 fórmulas'}
+                {loading ? 'Pensando...' : 'Cargar siguientes 10 fórmulas'}
               </button>
             </div>
           </section>
