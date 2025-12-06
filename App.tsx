@@ -8,15 +8,13 @@ import HookCard from './components/HookCard';
 const App: React.FC = () => {
   // --- AUTH STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [accessCodeInput, setAccessCodeInput] = useState('');
-  const [emailInput, setEmailInput] = useState(''); // New email state
+  
+  // Login Inputs
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginCode, setLoginCode] = useState('');
   const [authError, setAuthError] = useState('');
-  const [requestStatus, setRequestStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
-  // --- FORM REFS FOR ROBUST EMAIL SUBMISSION ---
-  const formRef = useRef<HTMLFormElement>(null);
-
-  // --- APP STATE ---
+  // App State
   const [formData, setFormData] = useState<FormData>({
     niche: '',
     topic: '',
@@ -47,13 +45,13 @@ const App: React.FC = () => {
     setAuthError('');
     
     // 1. Validate Email
-    if (!validateEmail(emailInput)) {
-      setAuthError('Por favor ingresa un correo electrónico válido antes de entrar.');
+    if (!validateEmail(loginEmail)) {
+      setAuthError('Por favor ingresa un correo electrónico válido para entrar.');
       return;
     }
 
     // 2. Validate Code input presence
-    if (!accessCodeInput.trim()) {
+    if (!loginCode.trim()) {
         setAuthError('Por favor ingresa tu código de acceso.');
         return;
     }
@@ -61,39 +59,16 @@ const App: React.FC = () => {
     // 3. Validate Code Match
     // process.env.ACCESS_CODES is injected by vite.config.ts
     const validCodesString = process.env.ACCESS_CODES || "";
-    // Clean and split codes
     const validCodes = validCodesString.split(',').map(c => c.trim()).filter(c => c !== "");
 
     // Check if the input code matches any valid code (case insensitive)
-    if (validCodes.some(code => code.toLowerCase() === accessCodeInput.trim().toLowerCase())) {
+    if (validCodes.some(code => code.toLowerCase() === loginCode.trim().toLowerCase())) {
       setIsAuthenticated(true);
       localStorage.setItem('hook_system_auth', 'true');
       setAuthError('');
     } else {
-      setAuthError('Código de acceso incorrecto. Verifica que esté bien escrito o solicita uno nuevo.');
+      setAuthError('Código de acceso incorrecto. Verifica o solicita uno nuevo abajo.');
     }
-  };
-
-  const handleRequestAccess = (e: React.FormEvent) => {
-    setAuthError('');
-    
-    // Check if email is entered
-    if (!validateEmail(emailInput)) {
-        e.preventDefault(); // Stop form submission
-        const msg = '⚠️ Por favor escribe tu correo electrónico en el campo de arriba para solicitar el acceso.';
-        setAuthError(msg);
-        alert(msg);
-        return;
-    }
-
-    // If email is valid, we let the form submit naturally to the new tab.
-    // We update UI to show "Sent" state
-    setRequestStatus('success');
-    
-    // Reset status after a few seconds so they can try again if needed
-    setTimeout(() => {
-        setRequestStatus('idle');
-    }, 5000);
   };
 
   // --- MAIN APP LOGIC ---
@@ -104,8 +79,6 @@ const App: React.FC = () => {
   };
 
   const getAIClient = () => {
-    // Safety check for empty API Key to avoid crashes
-    // We clean the key to remove potential accidental whitespaces from copy-pasting
     const rawKey = process.env.API_KEY || "";
     const apiKey = rawKey.trim();
     
@@ -160,7 +133,7 @@ const App: React.FC = () => {
         2. Do NOT leave any brackets [] in the final output.
         3. Maintain the psychological trigger (curiosity, fear, gain) of the original hook.
         4. Keep the output in Spanish.
-        5. Return ONLY a JSON array of strings. No markdown formatting, just the raw array.
+        5. Return ONLY a JSON array of strings. No markdown formatting.
 
         TEMPLATES TO ADAPT:
         ${JSON.stringify(templatesToAdapt)}
@@ -185,7 +158,6 @@ const App: React.FC = () => {
       try {
         adaptedStrings = JSON.parse(responseText);
       } catch (e) {
-        // Fallback if model returns markdown code block despite schema config
         const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         adaptedStrings = JSON.parse(cleanText);
       }
@@ -209,11 +181,9 @@ const App: React.FC = () => {
       let errorMessage = "Hubo un error generando los hooks. Por favor intenta de nuevo.";
       
       if (err.message === "API_KEY_MISSING") {
-        errorMessage = "Error de Configuración: Falta la API KEY en Vercel. Ve a Settings > Environment Variables y agrega 'API_KEY'.";
-      } else if (err.toString().includes("429") || err.toString().includes("Too Many Requests")) {
-        errorMessage = "⏳ Límite de tráfico gratuito alcanzado. El sistema está recargando energía. Por favor espera 10 segundos e intenta nuevamente.";
-      } else if (err.toString().includes("403") || err.toString().includes("API key not valid")) {
-        errorMessage = "Error de Acceso: La API Key configurada no es válida. Revisa tu configuración en Vercel.";
+        errorMessage = "Error de Configuración: Falta la API KEY en Vercel.";
+      } else if (err.toString().includes("429")) {
+        errorMessage = "⏳ Límite gratuito alcanzado. Espera 10 segundos e intenta de nuevo.";
       }
 
       setError(errorMessage);
@@ -225,117 +195,107 @@ const App: React.FC = () => {
   // --- LOGIN SCREEN RENDER ---
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-black px-4 font-sans">
-        <div className="bg-white p-8 md:p-12 rounded-lg shadow-2xl max-w-md w-full border-t-4 border-brand-gold relative overflow-hidden animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center bg-brand-black px-4 font-sans py-10">
+        <div className="bg-white p-8 md:p-10 rounded-lg shadow-2xl max-w-md w-full border-t-4 border-brand-gold relative overflow-hidden animate-fade-in">
           
-          <div className="text-center mb-6 relative z-10">
+          <div className="text-center mb-8 relative z-10">
             <h1 className="text-3xl md:text-4xl font-serif text-brand-black mb-2">Acceso Exclusivo</h1>
             <p className="text-brand-gold uppercase tracking-widest text-xs font-bold">Incubadora PRO FS</p>
           </div>
           
-          <div className="space-y-6 relative z-10">
+          <div className="space-y-8 relative z-10">
             
-            {/* Common Email Field */}
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                1. Tu Correo Electrónico
-              </label>
-              <input 
-                type="email"
-                name="email" 
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="tu@correo.com"
-                className="w-full bg-gray-50 border-b-2 border-gray-300 px-4 py-3 text-lg focus:outline-none focus:border-brand-gold transition-colors text-brand-black placeholder-gray-400"
-              />
-            </div>
-
-            {/* ERROR MESSAGE DISPLAY */}
-            {authError && (
-               <div className="bg-red-50 border-l-4 border-brand-red p-3 rounded-r">
-                 <p className="text-brand-red text-sm font-medium">
-                   {authError}
-                 </p>
-               </div>
-            )}
-            
-            {/* SUCCESS MESSAGE DISPLAY */}
-            {requestStatus === 'success' && (
-               <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded-r">
-                 <p className="text-green-800 text-sm font-bold mb-1">✅ Abriendo solicitud...</p>
-                 <p className="text-green-700 text-xs">
-                   Se ha abierto una nueva pestaña para verificar tu solicitud.
-                 </p>
-               </div>
-            )}
-
-            <hr className="border-gray-100 my-4" />
-
-            {/* Option A: Have Code */}
+            {/* --- SECTION 1: LOGIN --- */}
             <div className="space-y-4">
-              <p className="text-sm font-semibold text-brand-black">¿Ya tienes tu código?</p>
+              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide border-b border-gray-100 pb-2">
+                1. Ingresar con Código
+              </h2>
               
-              <div className="relative">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Tu Correo (Registrado):</label>
+                <input 
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="ejemplo@correo.com"
+                  className="w-full bg-gray-50 border border-gray-300 px-4 py-2 rounded focus:outline-none focus:border-brand-black transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Tu Código de Acceso:</label>
                 <input 
                   type="text"
-                  value={accessCodeInput}
-                  onChange={(e) => setAccessCodeInput(e.target.value)}
-                  placeholder="Ingresa tu Código VIP"
-                  className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-3 text-base focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-colors text-brand-black"
+                  value={loginCode}
+                  onChange={(e) => setLoginCode(e.target.value)}
+                  placeholder="Código VIP"
+                  className="w-full bg-gray-50 border border-gray-300 px-4 py-2 rounded focus:outline-none focus:border-brand-black transition-colors"
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 />
               </div>
 
+              {authError && (
+                 <p className="text-brand-red text-xs font-bold">{authError}</p>
+              )}
+
               <button
                 onClick={handleLogin}
-                className="w-full bg-brand-black text-white font-bold py-3 rounded-sm hover:bg-gray-900 transition-all duration-300 uppercase tracking-widest text-sm shadow-md hover:shadow-lg"
+                className="w-full bg-brand-black text-white font-bold py-3 rounded hover:bg-gray-800 transition-all uppercase tracking-widest text-xs shadow-md"
               >
-                Ingresar
+                Ingresar al Sistema
               </button>
             </div>
 
+            {/* DIVIDER */}
             <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-gray-200"></div>
                 <span className="flex-shrink-0 mx-4 text-gray-300 text-xs uppercase tracking-widest">O</span>
                 <div className="flex-grow border-t border-gray-200"></div>
             </div>
 
-            {/* Option B: Request Code - USING HIDDEN FORM FOR ROBUSTNESS */}
-            <div className="text-center space-y-3">
-               <p className="text-sm text-gray-600">¿Aún no tienes código?</p>
+            {/* --- SECTION 2: REQUEST ACCESS (PURE HTML FORM) --- */}
+            <div className="bg-gray-50 p-4 rounded border border-gray-100">
+               <h3 className="text-sm font-bold text-brand-gold mb-2 text-center">¿Aún no tienes código?</h3>
+               <p className="text-xs text-gray-500 text-center mb-4">
+                 Solicítalo gratis enviando tu correo a nuestro equipo.
+               </p>
                
-               {/* Hidden Real Form */}
+               {/* 
+                  Standard HTML Form. 
+                  target="_blank" ensures it opens a new tab.
+                  No JS 'onSubmit' blocking ensures reliability.
+               */}
                <form 
                   action="https://formsubmit.co/silvia.silvatorres@gmail.com" 
                   method="POST"
-                  target="_blank" 
-                  onSubmit={handleRequestAccess}
+                  target="_blank"
                   className="w-full"
                >
-                   <input type="hidden" name="email" value={emailInput} />
-                   <input type="hidden" name="_subject" value="Solicitud de Acceso VIP - Hook System" />
-                   {/* Removed _captcha=false to allow proper account activation and spam check */}
+                   <input type="hidden" name="_subject" value="Nueva Solicitud - Hook Generator" />
                    <input type="hidden" name="_template" value="table" />
-                   <input type="hidden" name="message" value={`El usuario con correo ${emailInput} solicita acceso.`} />
-                   
-                   <button
-                    type="submit"
-                    className="w-full border border-brand-gold font-bold py-2 rounded-sm transition-all duration-300 uppercase tracking-widest text-xs bg-white text-brand-gold hover:bg-brand-gold hover:text-white"
-                  >
-                    Solicitar Acceso Ahora
-                  </button>
-               </form>
+                   {/* Captcha is enabled by default for security */}
 
-              {/* Fallback info */}
-              <div className="text-[10px] text-gray-400 mt-2 bg-gray-50 p-2 rounded">
-                <p>¿Tienes problemas?</p>
-                <p>Escribe manualmente a: <span className="font-mono text-brand-black">silvia.silvatorres@gmail.com</span></p>
-              </div>
+                   <div className="flex flex-col gap-2">
+                     <input 
+                        type="email" 
+                        name="email" 
+                        required 
+                        placeholder="Escribe tu correo aquí..." 
+                        className="w-full border border-gray-300 px-3 py-2 text-sm rounded focus:border-brand-gold focus:outline-none"
+                     />
+                     <button
+                      type="submit"
+                      className="w-full border border-brand-gold text-brand-gold font-bold py-2 rounded hover:bg-brand-gold hover:text-white transition-colors text-xs uppercase tracking-widest"
+                    >
+                      Enviar Solicitud
+                    </button>
+                   </div>
+               </form>
             </div>
 
-            <div className="text-center mt-6 pt-4 border-t border-gray-50">
-               <p className="text-xs text-gray-400 font-serif italic">
-                 Silvia Silva y Luis Figuerola
+            <div className="text-center pt-2">
+               <p className="text-[10px] text-gray-400 font-serif italic">
+                 Silvia Silva & Luis Figuerola
                </p>
             </div>
           </div>
@@ -344,11 +304,11 @@ const App: React.FC = () => {
     );
   }
 
-  // --- APP RENDER ---
+  // --- APP RENDER (AUTHENTICATED) ---
   return (
     <div className="min-h-screen flex flex-col font-sans bg-white text-brand-black">
       
-      {/* Header Section */}
+      {/* Header */}
       <header className="py-8 px-4 md:px-8 border-b border-gray-100 bg-white sticky top-0 z-50 shadow-sm bg-opacity-95 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-center md:text-left">
@@ -363,8 +323,8 @@ const App: React.FC = () => {
             onClick={() => {
               localStorage.removeItem('hook_system_auth');
               setIsAuthenticated(false);
-              setEmailInput('');
-              setAccessCodeInput('');
+              setLoginEmail('');
+              setLoginCode('');
             }}
             className="text-xs text-gray-400 hover:text-brand-red uppercase tracking-widest underline transition-colors"
           >
@@ -391,35 +351,35 @@ const App: React.FC = () => {
                   name="niche"
                   value={formData.niche}
                   onChange={handleInputChange}
-                  placeholder="Ej. Fitness para mujeres, Bienes Raíces..."
+                  placeholder="Ej. Fitness, Bienes Raíces..."
                   className="w-full bg-white border-b-2 border-gray-300 px-4 py-3 text-lg focus:outline-none focus:border-brand-gold transition-colors placeholder-gray-300"
                 />
               </div>
 
               <div className="col-span-1">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  2. Idea / Tema del Video
+                  2. Idea / Tema
                 </label>
                 <input
                   type="text"
                   name="topic"
                   value={formData.topic}
                   onChange={handleInputChange}
-                  placeholder="Ej. Dieta Keto, Cómo vender casas..."
+                  placeholder="Ej. Dieta Keto, Vender sin vender..."
                   className="w-full bg-white border-b-2 border-gray-300 px-4 py-3 text-lg focus:outline-none focus:border-brand-gold transition-colors placeholder-gray-300"
                 />
               </div>
 
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  3. Audiencia Objetivo (Opcional)
+                  3. Audiencia (Opcional)
                 </label>
                 <input
                   type="text"
                   name="audience"
                   value={formData.audience}
                   onChange={handleInputChange}
-                  placeholder="Ej. Madres ocupadas, Inversionistas primerizos..."
+                  placeholder="Ej. Principiantes, Expertos..."
                   className="w-full bg-white border-b-2 border-gray-300 px-4 py-3 text-lg focus:outline-none focus:border-brand-gold transition-colors placeholder-gray-300"
                 />
               </div>
@@ -439,7 +399,7 @@ const App: React.FC = () => {
                 disabled={loading}
                 className="bg-brand-red text-white font-bold py-4 px-12 rounded-sm hover:bg-red-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-sm"
               >
-                {loading && generatedHooks.length === 0 ? 'Analizando Estrategia...' : 'Generar Hooks Virales'}
+                {loading && generatedHooks.length === 0 ? 'Analizando...' : 'Generar Hooks Virales'}
               </button>
             </div>
           </div>
@@ -466,7 +426,7 @@ const App: React.FC = () => {
                 disabled={loading}
                 className="bg-white border-2 border-brand-black text-brand-black font-bold py-3 px-8 hover:bg-brand-black hover:text-white transition-all duration-300 uppercase text-xs tracking-widest disabled:opacity-50 rounded-sm"
               >
-                {loading ? 'Procesando...' : 'Cargar siguientes 10 fórmulas'}
+                {loading ? 'Cargando...' : 'Cargar más fórmulas'}
               </button>
             </div>
           </section>
@@ -487,7 +447,7 @@ const App: React.FC = () => {
           </p>
           
           <div className="text-[10px] text-gray-600 uppercase tracking-widest">
-            &copy; {new Date().getFullYear()} Hook Generator System. Todos los derechos reservados.
+            &copy; {new Date().getFullYear()} Hook Generator System.
           </div>
         </div>
       </footer>
