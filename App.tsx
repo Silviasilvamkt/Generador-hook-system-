@@ -11,6 +11,10 @@ const App: React.FC = () => {
   const [accessCodeInput, setAccessCodeInput] = useState('');
   const [emailInput, setEmailInput] = useState(''); // New email state
   const [authError, setAuthError] = useState('');
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+
+  // --- FORM REFS FOR ROBUST EMAIL SUBMISSION ---
+  const formRef = useRef<HTMLFormElement>(null);
 
   // --- APP STATE ---
   const [formData, setFormData] = useState<FormData>({
@@ -70,24 +74,26 @@ const App: React.FC = () => {
     }
   };
 
-  const handleRequestAccess = () => {
+  const handleRequestAccess = (e: React.FormEvent) => {
     setAuthError('');
-
-    // Check if email is entered so we can include it in the mailto body
+    
+    // Check if email is entered
     if (!validateEmail(emailInput)) {
+        e.preventDefault(); // Stop form submission
         const msg = '⚠️ Por favor escribe tu correo electrónico en el campo de arriba para solicitar el acceso.';
         setAuthError(msg);
         alert(msg);
         return;
     }
 
-    // Opens user's email client to request access
-    const adminEmail = "silvia.silvatorres@gmail.com";
-    const subject = encodeURIComponent("Solicitud de Acceso VIP - Hook Generator System");
-    // We include the user's email in the body to make it easy for you to see who is asking
-    const body = encodeURIComponent(`Hola Silvia,\n\nMe gustaría solicitar acceso al Hook Generator System.\n\nMi correo de registro es: ${emailInput}\n\nQuedo a la espera de mi código de acceso.\n\nGracias.`);
+    // If email is valid, we let the form submit naturally to the new tab.
+    // We update UI to show "Sent" state
+    setRequestStatus('success');
     
-    window.location.href = `mailto:${adminEmail}?subject=${subject}&body=${body}`;
+    // Reset status after a few seconds so they can try again if needed
+    setTimeout(() => {
+        setRequestStatus('idle');
+    }, 5000);
   };
 
   // --- MAIN APP LOGIC ---
@@ -236,6 +242,7 @@ const App: React.FC = () => {
               </label>
               <input 
                 type="email"
+                name="email" 
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="tu@correo.com"
@@ -248,6 +255,16 @@ const App: React.FC = () => {
                <div className="bg-red-50 border-l-4 border-brand-red p-3 rounded-r">
                  <p className="text-brand-red text-sm font-medium">
                    {authError}
+                 </p>
+               </div>
+            )}
+            
+            {/* SUCCESS MESSAGE DISPLAY */}
+            {requestStatus === 'success' && (
+               <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded-r">
+                 <p className="text-green-800 text-sm font-bold mb-1">✅ Abriendo solicitud...</p>
+                 <p className="text-green-700 text-xs">
+                   Se ha abierto una nueva pestaña para verificar tu solicitud.
                  </p>
                </div>
             )}
@@ -283,21 +300,36 @@ const App: React.FC = () => {
                 <div className="flex-grow border-t border-gray-200"></div>
             </div>
 
-            {/* Option B: Request Code */}
+            {/* Option B: Request Code - USING HIDDEN FORM FOR ROBUSTNESS */}
             <div className="text-center space-y-3">
                <p className="text-sm text-gray-600">¿Aún no tienes código?</p>
-               <button
-                onClick={handleRequestAccess}
-                className="w-full bg-white border border-brand-gold text-brand-gold font-bold py-2 rounded-sm hover:bg-brand-gold hover:text-white transition-all duration-300 uppercase tracking-widest text-xs"
-              >
-                Solicitar Acceso Ahora
-              </button>
-              
-              {/* Fallback info if mailto fails */}
+               
+               {/* Hidden Real Form */}
+               <form 
+                  action="https://formsubmit.co/silvia.silvatorres@gmail.com" 
+                  method="POST"
+                  target="_blank" 
+                  onSubmit={handleRequestAccess}
+                  className="w-full"
+               >
+                   <input type="hidden" name="email" value={emailInput} />
+                   <input type="hidden" name="_subject" value="Solicitud de Acceso VIP - Hook System" />
+                   {/* Removed _captcha=false to allow proper account activation and spam check */}
+                   <input type="hidden" name="_template" value="table" />
+                   <input type="hidden" name="message" value={`El usuario con correo ${emailInput} solicita acceso.`} />
+                   
+                   <button
+                    type="submit"
+                    className="w-full border border-brand-gold font-bold py-2 rounded-sm transition-all duration-300 uppercase tracking-widest text-xs bg-white text-brand-gold hover:bg-brand-gold hover:text-white"
+                  >
+                    Solicitar Acceso Ahora
+                  </button>
+               </form>
+
+              {/* Fallback info */}
               <div className="text-[10px] text-gray-400 mt-2 bg-gray-50 p-2 rounded">
-                <p>¿No se abrió el correo?</p>
-                <p>Escribe a: <span className="font-mono text-brand-black">silvia.silvatorres@gmail.com</span></p>
-                <p>Asunto: Solicitud Acceso Hook System</p>
+                <p>¿Tienes problemas?</p>
+                <p>Escribe manualmente a: <span className="font-mono text-brand-black">silvia.silvatorres@gmail.com</span></p>
               </div>
             </div>
 
