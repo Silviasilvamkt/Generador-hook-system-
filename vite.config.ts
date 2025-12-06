@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => {
     define: {
       // Safely stringify the key. If missing, it becomes an empty string "" instead of undefined.
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ""),
+      // Inject access codes (comma separated strings)
+      'process.env.ACCESS_CODES': JSON.stringify(env.ACCESS_CODES || ""),
     },
   };
 });
