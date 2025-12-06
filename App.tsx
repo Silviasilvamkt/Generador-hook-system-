@@ -262,18 +262,17 @@ const App: React.FC = () => {
                
                {/* 
                   Standard HTML Form. 
-                  target="_blank" ensures it opens a new tab.
-                  No JS 'onSubmit' blocking ensures reliability.
+                  REMOVED target="_blank" to ensure functionality on mobile devices.
+                  The user will be redirected to the FormSubmit success page.
                */}
                <form 
                   action="https://formsubmit.co/silvia.silvatorres@gmail.com" 
                   method="POST"
-                  target="_blank"
                   className="w-full"
                >
                    <input type="hidden" name="_subject" value="Nueva Solicitud - Hook Generator" />
                    <input type="hidden" name="_template" value="table" />
-                   {/* Captcha is enabled by default for security */}
+                   <input type="hidden" name="_captcha" value="true" />
 
                    <div className="flex flex-col gap-2">
                      <input 
@@ -291,6 +290,16 @@ const App: React.FC = () => {
                     </button>
                    </div>
                </form>
+               
+               {/* Manual Fallback Link */}
+               <div className="mt-3 text-center">
+                 <a 
+                   href="mailto:silvia.silvatorres@gmail.com?subject=Solicitud Acceso Hook System"
+                   className="text-[10px] text-gray-400 underline hover:text-brand-gold transition-colors"
+                 >
+                   ¿Problemas? Enviar correo manualmente
+                 </a>
+               </div>
             </div>
 
             <div className="text-center pt-2">
